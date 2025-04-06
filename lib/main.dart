@@ -10,20 +10,20 @@ final SERVER = "10.130.101.252:8089";
 
 void main() => runApp(MyApp());
 
-Future<http.Response> fetchAlbum() {
-  return http.get(Uri.parse('https://jsonplaceholder.typicode.com/albums/1'));
-}
-
 Future<http.Response> fetchZoneEventRead() {
-  return http.get(Uri.parse('http://${SERVER}/event/read'));
-}
-
-Future<http.Response> fetchZoneEventCreate() {
-  return http.get(Uri.parse('http://${SERVER}/event/read'));
+	return http.get(Uri.parse('http://${SERVER}/event'));
 }
 
 class Event {
-	string startTimeStr = ""
+	DateTime? startTime;
+	DateTime? endTime;
+	Event(this.startTime, this.endTime);
+
+	static Event fromMap(Map<string, > eventRaw) {
+		final startTime = DateTime.parse(eventRaw["start_time"]);
+		final endTime   = DateTime.parse(eventRaw["end_time"]);
+		return Event(startTime, endTime);
+	}
 }
 
 class MyApp extends StatelessWidget {
@@ -55,8 +55,11 @@ class MyApp extends StatelessWidget {
 						IconButton(icon: Icon(Icons.redo), onPressed: () {}),
 						OutlinedButton(child: Text("Lưu"), onPressed: () {
 							fetchZone().then((response) {
-								final a = jsonDecode(response.body);
-								print(a["events"]);
+								final schedule = jsonDecode(response.body);
+								for (final eventRaw in schedule["events"]) {
+									final event = Event.fromMap(eventRaw);
+									print(event.startTime());
+								}
 							});
 						})
 					],
