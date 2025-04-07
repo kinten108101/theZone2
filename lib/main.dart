@@ -4,29 +4,107 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:ui';
 import 'dart:convert';
+import 'package:provider/provider.dart';
 
-final SERVER = "10.130.101.252:8089";
+final SERVER = "https://thezoneengine.onrender.com";
 
-void main() => runApp(MyApp());
+void main() => runApp(
+	MultiProvider(
+		providers: [
+			ChangeNotifierProvider(create: (context) => EventModel()),
+		],
+		child: MyApp(),
+	),
+);
 
 Future<http.Response> fetchZoneEventRead() {
-	return http.get(Uri.parse('http://${SERVER}/event'));
+	final uri = Uri.parse('${SERVER}/event?day=2025-10-10');
+	return http.get(uri);	
 }
 
 class Event {
 	DateTime? startTime;
 	DateTime? endTime;
-	Event(this.startTime, this.endTime);
+	String? title;
 
-	static Event fromMap(Map<string, > eventRaw) {
-		final startTime = DateTime.parse(eventRaw["start_time"]);
-		final endTime   = DateTime.parse(eventRaw["end_time"]);
-		return Event(startTime, endTime);
+	Event(
+		this.startTime,
+		this.endTime,
+		this.title
+	);
+
+	static Event fromMap(Map<String, dynamic> eventRaw) {
+		final startTime = DateTime.parse("${eventRaw["date"]} ${eventRaw["start_time"]}Z");
+		final endTime   = DateTime.parse("${eventRaw["date"]} ${eventRaw["end_time"]}Z");
+		final title     = eventRaw["title"];
+		return
+			Event(
+				startTime,
+				endTime,
+				title
+			);
+	}
+}
+
+class EventModel extends ChangeNotifier {
+	final List<Event> _data = [];
+
+	List<Event> get events => this._data;
+
+	void fill(List<Event> newEvents) {
+		this._data.clear();
+		this._data.addAll(newEvents);
+		this.notifyListeners();
+	}
+}
+
+class EventDataSource extends CalendarDataSource {
+	EventDataSource(List<Event> source) {
+		this.appointments = source;
+	}
+	
+	@override
+	DateTime getStartTime(int index) {
+		return this.appointments![index].startTime!;
+	}
+
+	@override
+	DateTime getEndTime(int index) {
+		return this.appointments![index].endTime!;
+	}
+
+	@override
+	String getSubject(int index) {
+		return this.appointments![index].title!;
+	}
+
+	@override
+	Color getColor(int index) {
+		return Colors.blue[400]!;
+	}
+
+	@override
+	bool isAllDay(int index) {
+		return false;
 	}
 }
 
 class MyApp extends StatelessWidget {
+	void onLoad(eventModel) {
+		fetchZoneEventRead()
+			.then((response) {
+				final scheduleRaw = jsonDecode(response.body);
+				final List<Event> newEvents = <Event>[];
+				for (final eventRaw in scheduleRaw["events"]) {
+					final event = Event.fromMap(eventRaw);
+					newEvents.add(event);
+				}
+				eventModel.fill(newEvents);
+			});
+	}
+
 	@override
 	Widget build(BuildContext ctx) {
 		return MaterialApp(
@@ -34,9 +112,8 @@ class MyApp extends StatelessWidget {
 				useMaterial3: true,
 				colorScheme: ColorScheme.fromSeed(
 					seedColor: Colors.lime,
-					// ···
 					brightness: Brightness.light,
-    ),
+				),
 			),
 			home: Scaffold(
 				drawer: Drawer(
@@ -49,19 +126,17 @@ class MyApp extends StatelessWidget {
 								Scaffold.of(context).openDrawer();
 							}),
 					),
-					title: Text('April 2025'),
+					title: Text('The Zone'),
 					actions: <Widget>[
-						IconButton(icon: Icon(Icons.undo), onPressed: () {}),
-						IconButton(icon: Icon(Icons.redo), onPressed: () {}),
-						OutlinedButton(child: Text("Lưu"), onPressed: () {
-							fetchZone().then((response) {
-								final schedule = jsonDecode(response.body);
-								for (final eventRaw in schedule["events"]) {
-									final event = Event.fromMap(eventRaw);
-									print(event.startTime());
-								}
-							});
-						})
+						Consumer<EventModel>(
+							builder: (context, eventModel, child) =>
+								OutlinedButton(
+									child: Text("Load"),
+									onPressed: () {
+										onLoad(eventModel);
+									},
+								),
+						),
 					],
 				),
 				body: Page(),
@@ -80,9 +155,18 @@ class PageState extends State<Page> {
 	Widget build(BuildContext context) {
 		ThemeData theme = Theme.of(context);
 		return Scaffold(
-				body: SfCalendar(
-					view: CalendarView.month
-				)
+			body:
+				Consumer<EventModel>(
+					builder: (context, eventModel, child) =>
+						SfCalendar(
+							view: CalendarView.month,
+							dataSource: EventDataSource(eventModel.events),
+							monthViewSettings: MonthViewSettings(
+								showAgenda: true,
+								appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+							),
+						),
+				),
 		);
 	}
 }
