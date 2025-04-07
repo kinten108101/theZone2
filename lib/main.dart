@@ -8,7 +8,6 @@ import 'dart:ui';
 import 'dart:convert';
 import 'package:provider/provider.dart';
 
-final SERVER = "https://thezoneengine.onrender.com";
 
 void main() => runApp(
 	MultiProvider(
@@ -19,9 +18,23 @@ void main() => runApp(
 	),
 );
 
-Future<http.Response> fetchZoneEventRead() {
-	final uri = Uri.parse('${SERVER}/event?day=2025-10-10');
-	return http.get(uri);	
+class TheZoneEngine {
+	static final SERVER = "https://thezoneengine.onrender.com";
+
+	static Future<List<Event>> getEventsMock() {
+		final uri = Uri.parse('${SERVER}/event?day=2025-10-10');
+		return
+			http.get(uri)
+				.then((response) {
+					final scheduleRaw = jsonDecode(response.body);
+					final List<Event> newEvents = <Event>[];
+					for (final eventRaw in scheduleRaw["events"]) {
+						final event = Event.fromMap(eventRaw);
+						newEvents.add(event);
+					}
+					return newEvents;
+				});
+	}
 }
 
 class Event {
@@ -93,14 +106,8 @@ class EventDataSource extends CalendarDataSource {
 
 class MyApp extends StatelessWidget {
 	void onLoad(eventModel) {
-		fetchZoneEventRead()
-			.then((response) {
-				final scheduleRaw = jsonDecode(response.body);
-				final List<Event> newEvents = <Event>[];
-				for (final eventRaw in scheduleRaw["events"]) {
-					final event = Event.fromMap(eventRaw);
-					newEvents.add(event);
-				}
+		TheZoneEngine.getEventsMock()
+			.then((newEvents) {
 				eventModel.fill(newEvents);
 			});
 	}
@@ -151,7 +158,6 @@ class Page extends StatefulWidget {
 }
 
 class PageState extends State<Page> {
-	int currentPage = 0;
 	Widget build(BuildContext context) {
 		ThemeData theme = Theme.of(context);
 		return Scaffold(
@@ -167,7 +173,19 @@ class PageState extends State<Page> {
 							),
 						),
 				),
+			floatingActionButton:
+				FloatingActionButton(
+					onPressed: () {},
+					child: Icon(Icons.add),
+				),
 		);
 	}
 }
 
+class AddPage extends StatefulWidget {
+	@override
+	State<Page> createState() => AddPageState();
+}
+
+class AddPageState extends State<AddPage> {
+}
