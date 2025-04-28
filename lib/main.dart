@@ -21,7 +21,7 @@ void main() => runApp(
 class TheZoneEngine {
 	static final SERVER = "https://zone-engine-v2-2326111669.asia-southeast1.run.app";
 
-	static Future<List<Event>> getEventsMog() {
+	static Future<List<Event>> getEventsMock() {
 		final uri = Uri.parse('${SERVER}/event?day=2025-10-10');
 		return
 			http.get(uri)
