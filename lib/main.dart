@@ -32,15 +32,14 @@ class TheZoneEngine {
 					final schedulesRaw = jsonDecode(response.body);
 					final List<Event> newEvents = <Event>[];
 					for (final scheduleRaw in schedulesRaw) {
-					for (final eventRaw in scheduleRaw["events"]) {
-						// eventRaw["date"] = eventRaw["date"].substring(0, eventRaw["date"].length);
-						try {
-							final event = Event.fromMap(eventRaw);
-							newEvents.add(event);
-						} on FormatException catch (e) {
-							print("oopsie $e");
+						for (final eventRaw in scheduleRaw["events"]) {
+							try {
+								final event = Event.fromMap(eventRaw);
+								newEvents.add(event);
+							} on FormatException catch (e) {
+								print("oopsie $e");
+							}
 						}
-					}
 					}
 					return newEvents;
 				});
