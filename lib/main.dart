@@ -1,3 +1,4 @@
+// @dart = 3.0
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -7,30 +8,39 @@ import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
 import 'package:provider/provider.dart';
-
+import 'package:flutter_layout_grid/flutter_layout_grid.dart';
+import 'package:flutter/foundation.dart';
 
 void main() => runApp(
 	MultiProvider(
 		providers: [
 			ChangeNotifierProvider(create: (context) => EventModel()),
+			ChangeNotifierProvider(create: (context) => NavigationModel()),
 		],
 		child: MyApp(),
 	),
 );
 
 class TheZoneEngine {
-	static final SERVER = "https://thezoneengine.onrender.com";
+	static final SERVER = "https://zone-engine-v2-2326111669.asia-southeast1.run.app";
 
 	static Future<List<Event>> getEventsMock() {
-		final uri = Uri.parse('${SERVER}/event?day=2025-10-10');
+		final uri = Uri.parse('${SERVER}/mock');
 		return
 			http.get(uri)
 				.then((response) {
-					final scheduleRaw = jsonDecode(response.body);
+					final schedulesRaw = jsonDecode(response.body);
 					final List<Event> newEvents = <Event>[];
+					for (final scheduleRaw in schedulesRaw) {
 					for (final eventRaw in scheduleRaw["events"]) {
-						final event = Event.fromMap(eventRaw);
-						newEvents.add(event);
+						// eventRaw["date"] = eventRaw["date"].substring(0, eventRaw["date"].length);
+						try {
+							final event = Event.fromMap(eventRaw);
+							newEvents.add(event);
+						} on FormatException catch (e) {
+							print("oopsie $e");
+						}
+					}
 					}
 					return newEvents;
 				});
@@ -47,10 +57,21 @@ class Event {
 		this.endTime,
 		this.title
 	);
+	
+	static String from12to24(String s) {
+		String third = s.split(" ")[1];
+		var u = s.split(" ")[0].split(":");
+		String first = u[0];
+		String second = u[1];
+		if (third == "PM") {
+			first = (int.parse(first) + 12).toString();
+		}
+		return "$first:$second";
+	}
 
 	static Event fromMap(Map<String, dynamic> eventRaw) {
-		final startTime = DateTime.parse("${eventRaw["date"]} ${eventRaw["start_time"]}Z");
-		final endTime   = DateTime.parse("${eventRaw["date"]} ${eventRaw["end_time"]}Z");
+		final startTime = DateTime.parse("${eventRaw["date"]} ${Event.from12to24(eventRaw["start_time"])}:00Z");
+		final endTime   = DateTime.parse("${eventRaw["date"]} ${Event.from12to24(eventRaw["end_time"])}:00Z");
 		final title     = eventRaw["title"];
 		return
 			Event(
@@ -69,6 +90,18 @@ class EventModel extends ChangeNotifier {
 	void fill(List<Event> newEvents) {
 		this._data.clear();
 		this._data.addAll(newEvents);
+		this.notifyListeners();
+	}
+}
+
+class NavigationModel extends ChangeNotifier {
+	String _currentName = "home";
+
+	String get currentName => this._currentName;
+
+	void setCurrentPage(String name) {
+		if (name == this._currentName) return;
+		this._currentName = name;
 		this.notifyListeners();
 	}
 }
@@ -146,7 +179,18 @@ class MyApp extends StatelessWidget {
 						),
 					],
 				),
-				body: Page(),
+				body: Consumer<NavigationModel>(
+					builder: (context, model, child) {
+						final name = model.currentName;
+						final widget = switch (name) {
+							"home" => Page(),
+							"add"  => AddPage(),
+							"event" => EventPage(),
+							_      => throw Exception("wtf"),
+						};
+						return widget;
+					},
+				),
 			),
 		);
 	}
@@ -174,9 +218,14 @@ class PageState extends State<Page> {
 						),
 				),
 			floatingActionButton:
-				FloatingActionButton(
-					onPressed: () {},
-					child: Icon(Icons.add),
+				Consumer<NavigationModel>(
+					builder: (context, model, child) =>
+						FloatingActionButton(
+							onPressed: () {
+								model.setCurrentPage("add");
+							},
+							child: Icon(Icons.add),
+						),
 				),
 		);
 	}
@@ -184,8 +233,42 @@ class PageState extends State<Page> {
 
 class AddPage extends StatefulWidget {
 	@override
-	State<Page> createState() => AddPageState();
+	State<AddPage> createState() => AddPageState();
 }
 
 class AddPageState extends State<AddPage> {
+	Widget build(BuildContext context) {
+		return Scaffold(
+			body: LayoutGrid(
+				areas: """
+					switchlabel switch
+				""",
+				columnSizes: [1.fr, 64.px],
+				rowSizes: [64.px],
+				children: [
+					Text(
+						"All-day",
+						textAlign: TextAlign.center,
+					)
+						.inGridArea("switchlabel"),
+					Switch(
+						value: true,
+						onChanged: (bool value){},
+					)
+						.inGridArea("switch")
+				],
+			),
+		);
+	}
+}
+
+class EventPage extends StatefulWidget {
+	State<EventPage> createState() => EventPageState();
+}
+
+class EventPageState extends State<EventPage> {
+	Widget build(BuildContext context) {
+		return Scaffold(
+		);
+	}
 }
