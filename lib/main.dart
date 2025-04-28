@@ -19,7 +19,7 @@ void main() => runApp(
 );
 
 class TheZoneEngine {
-	static final SERVER = "https://thezoneengine.onrender.com";
+	static final SERVER = "https://zone-engine-2326111669.asia-southeast1.run.app";
 
 	static Future<List<Event>> getEventsMock() {
 		final uri = Uri.parse('${SERVER}/event?day=2025-10-10');
@@ -180,12 +180,4 @@ class PageState extends State<Page> {
 				),
 		);
 	}
-}
-
-class AddPage extends StatefulWidget {
-	@override
-	State<Page> createState() => AddPageState();
-}
-
-class AddPageState extends State<AddPage> {
 }
